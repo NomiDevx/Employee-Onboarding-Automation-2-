@@ -1,0 +1,1283 @@
+{
+  "name": "Employee Onboarding Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ \"status\": \"success\", \"message\": \"Onboarding workflow triggered\", \"employee\": $('Webhook1').item.json.body.full_name }) }}",
+        "options": {}
+      },
+      "id": "aa86eb9c-443d-4691-9ed3-720b24580c93",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        -2320,
+        2368
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an HR onboarding specialist. Analyze the new hire profile below and return ONLY a valid JSON object — no prose, no markdown fences.\n\nPRIORITY RULES (apply strictly):\n- \"executive\" → Director / VP / C-level / Head of\n- \"high\" → Senior / Lead / Principal / Staff\n- \"standard\" → all others (Junior, Mid, Associate)\n\nDEPARTMENT: normalize to exactly one of:\nEngineering | Marketing | Sales | Finance | HR | Operations\n\nIT REQUIREMENTS:\n- laptop_type: honor stated preference; default to \"MacBook Pro\" if blank\n- software_list: 4–8 tools appropriate for the role and department\n- access_levels: 3–6 systems/permissions the role requires\n\nONBOARDING GOALS (realistic, role-specific milestones):\n- 30_day: ramp-up & environment setup\n- 60_day: first contribution or deliverable\n- 90_day: operating independently\n\nBUDDY SUGGESTION:\nA plausible full name + title from the same department (invent if needed).\n\nNEW HIRE:\nName: {{ $json.body.full_name }}\nPosition: {{ $json.body.position }}\nDepartment: {{ $json.body.department }}\nExperience Level: {{ $json.body.experience_level }}\nLaptop Preference:{{ $json.body.laptop_preference }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are an HR onboarding specialist. Analyze new hire profiles and provide structured onboarding recommendations. Use exact department names: Engineering, Marketing, Sales, Finance, HR, Operations. Priority levels: standard (junior/mid), high (senior/lead), executive (director/VP/C-level)."
+        }
+      },
+      "id": "7409e6fe-51f6-4e4e-9745-ebcf46e301ec",
+      "name": "AI Role Analysis1",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -2384,
+        2544
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "id": "2cc3adf6-f3a6-4f93-b871-30c882f20099",
+      "name": "OpenAI Model1",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -2384,
+        2768
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": null,
+          "name": "",
+          "__aiGatewayManaged": true
+        }
+      }
+    },
+    {
+      "parameters": {
+        "project": {
+          "__rl": true,
+          "value": "10000",
+          "mode": "list",
+          "cachedResultName": "My Software Team"
+        },
+        "issueType": {
+          "__rl": true,
+          "value": "10004",
+          "mode": "list",
+          "cachedResultName": "Story"
+        },
+        "summary": "=the below requirement should must be completed {{ $json.new_hire.it_requirements.software_list }}",
+        "additionalFields": {}
+      },
+      "id": "71a176d8-1421-4dad-89a8-650d1cd9c408",
+      "name": "Create IT Jira Ticket1",
+      "type": "n8n-nodes-base.jira",
+      "typeVersion": 1,
+      "position": [
+        -1728,
+        2304
+      ],
+      "credentials": {
+        "jiraSoftwareCloudApi": {
+          "id": "fdzAIuM2VJrGLYjx",
+          "name": "Jira SW Cloud account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0B43UL97L1",
+          "mode": "list",
+          "cachedResultName": "managementteam"
+        },
+        "text": "=🆕 New Hire IT Setup Required\n\n*Employee:* {{ $(\"Webhook1\").item.json.body.full_name }}\n*Position:* {{ $(\"Webhook1\").item.json.body.position }}\n*Start Date:* {{ $(\"Webhook1\").item.json.body.start_date }}\n*Priority:* {{ $(\"AI Role Analysis1\").item.json.priority.toUpperCase() }}\n*SLA:* {{ $(\"AI Role Analysis1\").item.json.priority === \"executive\" ? \"4 hours\" : $(\"AI Role Analysis1\").item.json.priority === \"high\" ? \"24 hours\" : \"72 hours\" }}\n\n*Jira Ticket:* {{ $json.key }} - <{{ $json.self }}|View Ticket>\n\n*Laptop:* {{ $(\"AI Role Analysis1\").item.json.it_requirements.laptop_type }}",
+        "otherOptions": {}
+      },
+      "id": "cb4435d5-450e-4209-b8e2-9e8267cc1ce0",
+      "name": "Notify IT Team1",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.4,
+      "position": [
+        -1264,
+        2336
+      ],
+      "webhookId": "cbb6fbf5-58bb-428a-9ffb-a4605f059b4e",
+      "credentials": {
+        "slackOAuth2Api": {
+          "id": "4v0pMTBgumPS4wv3",
+          "name": "Slack OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "numberInputs": 5
+      },
+      "id": "602aa4a2-b947-47a9-bef1-2ad6376db564",
+      "name": "Merge All Branches1",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -832,
+        2544
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "hr@company.com",
+        "subject": "=New hire onboarding initiated: {{ $(\"Webhook1\").item.json.body.full_name }}",
+        "message": "=<h2>New Hire Onboarding Initiated</h2>\n\n<p><strong>Employee:</strong> {{ $(\"Webhook1\").item.json.body.full_name }}</p>\n<p><strong>Email:</strong> {{ $(\"Webhook1\").item.json.body.email }}</p>\n<p><strong>Position:</strong> {{ $(\"Webhook1\").item.json.body.position }}</p>\n<p><strong>Department:</strong> {{ $(\"AI Role Analysis1\").item.json.department }}</p>\n<p><strong>Start Date:</strong> {{ $(\"Webhook1\").item.json.body.start_date }}</p>\n<p><strong>Manager:</strong> {{ $(\"Webhook1\").item.json.body.manager_email }}</p>\n<p><strong>Office Location:</strong> {{ $(\"Webhook1\").item.json.body.office_location }}</p>\n<p><strong>Priority Level:</strong> {{ $(\"AI Role Analysis1\").item.json.priority.toUpperCase() }}</p>\n\n<h3>Onboarding Checklist</h3>\n<ul>\n<li>IT Setup: Jira ticket created</li>\n<li>Accounts: Slack, GitHub, Google Workspace</li>\n<li>Orientation scheduled</li>\n<li>Manager notified</li>\n<li>Buddy assigned: {{ $(\"AI Role Analysis1\").item.json.buddy_suggestion }}</li>\n</ul>",
+        "options": {}
+      },
+      "id": "3370a0ca-c28e-423c-b13a-6c4b6dda275a",
+      "name": "Email HR Team1",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -1280,
+        2112
+      ],
+      "webhookId": "945aa12b-768e-42f8-9993-aef18c90d4a0",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "GY0IP0iFTcK17LvZ",
+          "name": "Gmail OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "calendar": {
+          "__rl": true,
+          "value": "xnomi05@gmail.com",
+          "mode": "list",
+          "cachedResultName": "xnomi05@gmail.com"
+        },
+        "start": "={{ $(\"Webhook1\").item.json.body.start_date }}T09:00:00",
+        "end": "={{ $(\"Webhook1\").item.json.body.start_date }}T12:00:00",
+        "additionalFields": {
+          "attendees": [
+            "={{ $('Webhook1').item.json.body.email }}"
+          ],
+          "description": "=Welcome orientation for {{ $(\"Webhook1\").item.json.body.full_name }}\n\nPosition: {{ $(\"Webhook1\").item.json.body.position }}\nDepartment:{{ $('Webhook1').item.json.body.department }} \nManager: {{ $(\"Webhook1\").item.json.body.manager_email }}\nBuddy: {{ $('Structed Output').item.json.new_hire.buddy_suggestion }}",
+          "location": "={{ $(\"Webhook1\").item.json.body.office_location === \"remote\" ? \"Video Conference\" : $(\"Webhook1\").item.json.body.office_location + \" Office - Conference Room A\" }}",
+          "summary": "=New Hire Orientation - {{ $(\"Webhook1\").item.json.body.full_name }}"
+        }
+      },
+      "id": "d51cfb24-9237-446d-85f9-b3d2abec8e81",
+      "name": "Create Orientation Event1",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        -1056,
+        2112
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "sb6u21dGoct1rhgx",
+          "name": "Google Calendar OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $(\"Webhook1\").item.json.body.manager_email }}",
+        "subject": "=Your new team member starts {{ $(\"Webhook1\").item.json.body.start_date }}: {{ $(\"Webhook1\").item.json.body.full_name }}",
+        "message": "=<h2>New Team Member Starting Soon</h2>\n\n<p>Hi,</p>\n\n<p>Your new team member <strong>{{ $(\"Webhook1\").item.json.body.full_name }}</strong> will be joining the {{ $json.new_hire.department }} team on <strong>{{ $(\"Webhook1\").item.json.body.start_date }}</strong>.</p>\n\n<h3>Role Details</h3>\n<p><strong>Position:</strong> {{ $(\"Webhook1\").item.json.body.position }}</p>\n<p><strong>Experience Level:</strong> {{ $(\"Webhook1\").item.json.body.experience_level }}</p>\n<p><strong>Office Location:</strong> {{ $(\"Webhook1\").item.json.body.office_location }}</p>\n\n<h3>Onboarding Goals</h3>\n<p><strong>30 Days:</strong> {{ $json.new_hire.onboarding_goals['30_day'] }} </p>\n<p><strong>60 Days:</strong> {{ $json.new_hire.onboarding_goals['60_day'] }}</p>\n<p><strong>90 Days:</strong> {{ $json.new_hire.onboarding_goals['90_day'] }}</p>\n\n<h3>Suggested First Week Tasks</h3>\n<ul>\n<li>Welcome meeting and team introduction</li>\n<li>Review role responsibilities and expectations</li>\n<li>Setup 1-on-1 schedule</li>\n<li>Assign initial project or task</li>\n<li>Introduce to assigned buddy: {{ $(\"AI Role Analysis1\").item.json.buddy_suggestion }}</li>\n</ul>\n\n<p>A Notion onboarding page will be created with detailed resources.</p>",
+        "options": {}
+      },
+      "id": "3230dc2c-409f-443a-ba8d-c5870f798511",
+      "name": "Email Manager1",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -1280,
+        2496
+      ],
+      "webhookId": "45c26e47-41e5-4b21-a2da-f96f00b8517f",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "GY0IP0iFTcK17LvZ",
+          "name": "Gmail OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "resource": "databasePage",
+        "databaseId": {
+          "__rl": true,
+          "value": "b4eed49e-3929-82d1-b9f3-01c0b191e3aa",
+          "mode": "list",
+          "cachedResultName": "Tasks",
+          "cachedResultUrl": "https://www.notion.so/b4eed49e392982d1b9f301c0b191e3aa"
+        },
+        "title": "={{ $(\"Webhook1\").item.json.body.full_name }} - Onboarding Plan",
+        "propertiesUi": {
+          "propertyValues": []
+        },
+        "blockUi": {
+          "blockValues": [
+            {
+              "textContent": "Welcome to the Team!"
+            },
+            {
+              "textContent": "=This page contains all resources for {{ $(\"Webhook1\").item.json.body.full_name }} onboarding."
+            },
+            {
+              "textContent": "Quick Links"
+            },
+            {
+              "textContent": "Company Handbook: [Link to handbook]"
+            },
+            {
+              "textContent": "Team Wiki: [Link to wiki]"
+            },
+            {
+              "textContent": "Project Documentation: [Link to docs]"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "eb0f9ca5-586b-4cfe-8e64-7ae8ecb73fc5",
+      "name": "Create Notion Onboarding Page1",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        -1056,
+        2496
+      ],
+      "credentials": {
+        "notionOAuth2Api": {
+          "id": "PzateUtPyNWRz1Vn",
+          "name": "Notion OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0B5BEE395Z",
+          "mode": "list",
+          "cachedResultName": "finance"
+        },
+        "text": "={{ $json.new_hire.name }}{{ $json.new_hire.experience_level }}",
+        "otherOptions": {}
+      },
+      "id": "5d59e0ee-24b8-4aeb-97c7-7ff700327b6d",
+      "name": "Notify Finance Team1",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.4,
+      "position": [
+        -1056,
+        2688
+      ],
+      "webhookId": "c801a212-1a93-43f8-b21e-68286e7f5280",
+      "credentials": {
+        "slackOAuth2Api": {
+          "id": "4v0pMTBgumPS4wv3",
+          "name": "Slack OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $(\"Webhook1\").item.json.body.office_location }}",
+              "rightValue": "remote",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              },
+              "id": "3293fe6b-0a77-4866-b444-9763e018843d"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "56f1fdfe-73f4-4d67-9359-6d3fde59bb06",
+      "name": "Check Office Location1",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -1280,
+        2976
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0B43UL97L1",
+          "mode": "list",
+          "cachedResultName": "managementteam"
+        },
+        "text": "=🏢 Office Desk Setup Required\n\n*Employee:* {{ $(\"Webhook1\").item.json.body.full_name }}\n*Office Location:* {{ $(\"Webhook1\").item.json.body.office_location }}\n*Start Date:* {{ $(\"Webhook1\").item.json.body.start_date }}\n*Laptop:* {{ $(\"AI Role Analysis1\").item.json.it_requirements.laptop_type }}\n\nPlease prepare desk and equipment.",
+        "otherOptions": {}
+      },
+      "id": "486fa3fd-040c-42aa-8697-74b62cf5b498",
+      "name": "Notify Facilities - Office Setup1",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.4,
+      "position": [
+        -1056,
+        2880
+      ],
+      "webhookId": "85380166-c007-4310-b7f9-d77b34bfa853",
+      "credentials": {
+        "slackOAuth2Api": {
+          "id": "4v0pMTBgumPS4wv3",
+          "name": "Slack OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0B43UL97L1",
+          "mode": "list",
+          "cachedResultName": "managementteam"
+        },
+        "text": "=📦 Remote Equipment Shipping Required\n\n*Employee:* {{ $(\"Webhook1\").item.json.body.full_name }}\n*Location:* Remote\n*Start Date:* {{ $(\"Webhook1\").item.json.body.start_date }}\n*Laptop:* {{ $(\"AI Role Analysis1\").item.json.it_requirements.laptop_type }}\n\nPlease ship laptop and welcome kit. Address to be collected by HR.",
+        "otherOptions": {}
+      },
+      "id": "196aae1f-054f-4438-b692-26107e045111",
+      "name": "Notify Facilities - Ship Equipment1",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.4,
+      "position": [
+        -1056,
+        3072
+      ],
+      "webhookId": "6b0ab9ee-962b-459e-8164-c42d44f18861",
+      "credentials": {
+        "slackOAuth2Api": {
+          "id": "4v0pMTBgumPS4wv3",
+          "name": "Slack OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $(\"Webhook1\").item.json.body.email }}",
+        "subject": "=Welcome to the team, {{ $(\"Webhook1\").item.json.body.full_name }}!",
+        "message": "=<h1>Welcome to the Team!</h1>\n\n<p>Dear {{ $(\"Webhook1\").item.json.body.full_name }},</p>\n\n<p>We are thrilled to have you joining us as <strong>{{ $(\"Webhook1\").item.json.body.position }}</strong> in the {{ $(\"AI Role Analysis1\").item.json.department }} department!</p>\n\n<h2>Your Start Date</h2>\n<p>Your first day is <strong>{{ $(\"Webhook1\").item.json.body.start_date }}</strong> at 9:00 AM.</p>\n\n<h2>First Day Instructions</h2>\n<ul>\n<li>Location: {{ $(\"Webhook1\").item.json.body.office_location === \"remote\" ? \"You will receive a video conference link\" : $(\"Webhook1\").item.json.body.office_location + \" Office - Check in at reception\" }}</li>\n<li>Your orientation is scheduled from 9:00 AM - 12:00 PM</li>\n<li>Your manager {{ $(\"Webhook1\").item.json.body.manager_email }} will meet you</li>\n<li>Your onboarding buddy is {{ $(\"AI Role Analysis1\").item.json.buddy_suggestion }}</li>\n</ul>\n\n<h2>IT Setup Status</h2>\n<p>Our IT team is preparing:</p>\n<ul>\n<li>{{ $(\"AI Role Analysis1\").item.json.it_requirements.laptop_type }}</li>\n<li>Accounts: Slack, GitHub, Google Workspace</li>\n<li>Software: {{ $(\"AI Role Analysis1\").item.json.it_requirements.software_list.join(\", \") }}</li>\n</ul>\n\n<h2>Resources</h2>\n<p>Your personalized onboarding page: {{ $(\"Create Notion Onboarding Page1\").item.json.url }}</p>\n\n<p>Looking forward to seeing you soon!</p>\n\n<p>Best regards,<br>The HR Team</p>",
+        "options": {}
+      },
+      "id": "41050c7b-a4d4-41ee-945a-cab4cfc6be1f",
+      "name": "Send Welcome Email1",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -528,
+        2480
+      ],
+      "webhookId": "0da974c2-a4d6-40b1-ac2e-c02df521bead",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "GY0IP0iFTcK17LvZ",
+          "name": "Gmail OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1oUCIrEPA5mYfNdKNjFQgStuZDsRSZj6vmWdgngsZQNg",
+          "mode": "list",
+          "cachedResultName": "HR Management System",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1oUCIrEPA5mYfNdKNjFQgStuZDsRSZj6vmWdgngsZQNg/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1oUCIrEPA5mYfNdKNjFQgStuZDsRSZj6vmWdgngsZQNg/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {
+            "employee_name": "={{ $('Merge All Branches1').item.json.name }}",
+            "onboarding_plan_name": "={{ $('Merge All Branches1').item.json.name }}",
+            "notion_page_id": "={{ $('Create Notion Onboarding Page1').item.json.id }}",
+            "notion_page_url": "={{ $('Create Notion Onboarding Page1').item.json.url }}",
+            "project": "={{ $json.property_project }}",
+            "assignee": "={{ $('Create Notion Onboarding Page1').item.json.property_assignee }}",
+            "due_date": "={{ $('Create Orientation Event1').item.json.end.dateTime }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "employee_name",
+              "displayName": "employee_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "onboarding_plan_name",
+              "displayName": "onboarding_plan_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "notion_page_id",
+              "displayName": "notion_page_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "notion_page_url",
+              "displayName": "notion_page_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "project",
+              "displayName": "project",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "assignee",
+              "displayName": "assignee",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "due_date",
+              "displayName": "due_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "tasks",
+              "displayName": "tasks",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "slack_channel_id",
+              "displayName": "slack_channel_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "slack_message_ts",
+              "displayName": "slack_message_ts",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "slack_message_type",
+              "displayName": "slack_message_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "slack_message_text",
+              "displayName": "slack_message_text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "slack_user_id",
+              "displayName": "slack_user_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "slack_bot_id",
+              "displayName": "slack_bot_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "workflow_url",
+              "displayName": "workflow_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "notification_type",
+              "displayName": "notification_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "employee_location",
+              "displayName": "employee_location",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "start_date",
+              "displayName": "start_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "laptop_required",
+              "displayName": "laptop_required",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "shipping_required",
+              "displayName": "shipping_required",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "shipping_notes",
+              "displayName": "shipping_notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "ok",
+              "displayName": "ok",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "channel",
+              "displayName": "channel",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "message",
+              "displayName": "message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "message_timestamp",
+              "displayName": "message_timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "summary",
+              "displayName": "summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "start",
+              "displayName": "start",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "end",
+              "displayName": "end",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "attendees",
+              "displayName": "attendees",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "creator",
+              "displayName": "creator",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "organizer",
+              "displayName": "organizer",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "description",
+              "displayName": "description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "location",
+              "displayName": "location",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "created",
+              "displayName": "created",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "updated",
+              "displayName": "updated",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "etag",
+              "displayName": "etag",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "eventType",
+              "displayName": "eventType",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "htmlLink",
+              "displayName": "htmlLink",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "iCalUID",
+              "displayName": "iCalUID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "kind",
+              "displayName": "kind",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "reminders",
+              "displayName": "reminders",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "sequence",
+              "displayName": "sequence",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "url",
+              "displayName": "url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "property_due",
+              "displayName": "property_due",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "property_project",
+              "displayName": "property_project",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "property_assignee",
+              "displayName": "property_assignee",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "property_tasks",
+              "displayName": "property_tasks",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "f9a7dd16-61cd-490e-a4ff-775a241eaa4b",
+      "name": "Track in Onboarding Sheet1",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -512,
+        2736
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "da56YHMcOTVr7EaK",
+          "name": "Google Sheets OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0B5HV327DG",
+          "mode": "list",
+          "cachedResultName": "hr_alert"
+        },
+        "text": "=🚨 Onboarding Workflow Completed\n\n*Employee:* {{ $(\"Webhook1\").item.json.body.full_name }}\n*Status:* All tasks initiated successfully\n*Jira Ticket:* {{ $(\"Create IT Jira Ticket1\").item.json.key }} with URL {{ $json.message.blocks[0].elements[0].elements[14].url }}\n*Notion Page:* {{ $json.url }}\n\nMonitor progress in the Onboarding Tracker sheet.",
+        "otherOptions": {}
+      },
+      "id": "122c1017-6984-4309-9a18-fde6cab69325",
+      "name": "Notify HR Alerts1",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.4,
+      "position": [
+        -160,
+        2592
+      ],
+      "webhookId": "6c3f5e0b-4b95-4239-8b50-7abc1e067901",
+      "credentials": {
+        "slackOAuth2Api": {
+          "id": "4v0pMTBgumPS4wv3",
+          "name": "Slack OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "1c987f1b-3357-45a0-af10-266e1d157a30",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -2656,
+        2528
+      ],
+      "id": "a86b609e-4060-45cf-b3f6-808662a80918",
+      "name": "Webhook1",
+      "webhookId": "1c987f1b-3357-45a0-af10-266e1d157a30"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  {\n    json: {\n      new_hire: {\n        name: \"Sam Okonkwo\",\n        position: \"DevOps Engineer\",\n        department: \"Engineering\",\n        experience_level: \"standard\",\n\n        it_requirements: {\n          laptop_type: \"Linux Workstation\",\n\n          software_list: [\n            \"Docker\",\n            \"Kubernetes\",\n            \"Jenkins\",\n            \"Terraform\",\n            \"Git\",\n            \"Ansible\"\n          ],\n\n          access_levels: [\n            \"CI/CD Pipeline\",\n            \"Cloud Infrastructure\",\n            \"Version Control System\",\n            \"Monitoring Tools\"\n          ]\n        },\n\n        onboarding_goals: {\n          \"30_day\": \"ramp-up & environment setup\",\n          \"60_day\": \"first contribution or deliverable\",\n          \"90_day\": \"operating independently\"\n        },\n\n        buddy_suggestion: {\n          name: \"Alex Johnson\",\n          title: \"Senior DevOps Engineer\"\n        }\n      }\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2080,
+        2544
+      ],
+      "id": "d852ed80-1977-40c5-a75a-af2db84d7500",
+      "name": "Structed Output"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "AI Role Analysis1": {
+      "main": [
+        [
+          {
+            "node": "Structed Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Role Analysis1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create IT Jira Ticket1": {
+      "main": [
+        [
+          {
+            "node": "Notify IT Team1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify IT Team1": {
+      "main": [
+        [
+          {
+            "node": "Merge All Branches1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge All Branches1": {
+      "main": [
+        [
+          {
+            "node": "Send Welcome Email1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Track in Onboarding Sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email HR Team1": {
+      "main": [
+        [
+          {
+            "node": "Create Orientation Event1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Orientation Event1": {
+      "main": [
+        [
+          {
+            "node": "Merge All Branches1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Email Manager1": {
+      "main": [
+        [
+          {
+            "node": "Create Notion Onboarding Page1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Notion Onboarding Page1": {
+      "main": [
+        [
+          {
+            "node": "Merge All Branches1",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Notify Finance Team1": {
+      "main": [
+        [
+          {
+            "node": "Merge All Branches1",
+            "type": "main",
+            "index": 3
+          }
+        ]
+      ]
+    },
+    "Check Office Location1": {
+      "main": [
+        [
+          {
+            "node": "Notify Facilities - Office Setup1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notify Facilities - Ship Equipment1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Facilities - Office Setup1": {
+      "main": [
+        [
+          {
+            "node": "Merge All Branches1",
+            "type": "main",
+            "index": 4
+          }
+        ]
+      ]
+    },
+    "Notify Facilities - Ship Equipment1": {
+      "main": [
+        [
+          {
+            "node": "Merge All Branches1",
+            "type": "main",
+            "index": 4
+          }
+        ]
+      ]
+    },
+    "Send Welcome Email1": {
+      "main": [
+        [
+          {
+            "node": "Notify HR Alerts1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Track in Onboarding Sheet1": {
+      "main": [
+        [
+          {
+            "node": "Notify HR Alerts1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook1": {
+      "main": [
+        [
+          {
+            "node": "AI Role Analysis1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify HR Alerts1": {
+      "main": [
+        []
+      ]
+    },
+    "Structed Output": {
+      "main": [
+        [
+          {
+            "node": "Create IT Jira Ticket1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email HR Team1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email Manager1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Notify Finance Team1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Check Office Location1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "a5a47e48-c4fc-4c17-bec3-56b10c8857fd",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "30753312db25ec1e9d2982ea935486b5b05117304713334e109ebe3afde34893"
+  },
+  "id": "2B3ccA5ekRJkBG1R",
+  "tags": []
+}
